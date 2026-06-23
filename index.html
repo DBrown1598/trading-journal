@@ -253,7 +253,14 @@ textarea{resize:none;height:52px}
 .col-gap{display:flex;flex-direction:column;gap:10px}
 .divider{height:1px;background:var(--border);margin:14px 0}
 
-/* ── OVERVIEW ── */
+/* ── OVERVIEW MODE TOGGLE ── */
+.ov-controls{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.ov-mode-toggle{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px;gap:3px}
+.ov-mode-btn{background:none;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:var(--font);transition:background .15s,color .15s}
+.ov-mode-btn.active{background:var(--accent-bg);color:var(--accent)}
+.ov-risk-wrap{display:flex;align-items:center;gap:8px;opacity:0;pointer-events:none;transition:opacity .2s}
+.ov-risk-wrap.show{opacity:1;pointer-events:all}
+.ov-risk-wrap input{background:var(--surface2);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:13px;font-family:var(--font);padding:6px 10px;width:100px;outline:none}
 .ov-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 @media(max-width:480px){.ov-grid2{grid-template-columns:1fr}}
 .ov-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px}
@@ -311,6 +318,17 @@ textarea{resize:none;height:52px}
   <div class="news-banner" id="news-banner">
     <div class="news-banner-title">⚡ High-Impact News Week — Performance Comparison</div>
     <div class="news-grid" id="news-grid"></div>
+  </div>
+  <!-- R vs $ controls -->
+  <div class="ov-controls">
+    <div class="ov-mode-toggle">
+      <button class="ov-mode-btn active" id="mode-r" data-mode="r">R Multiple</button>
+      <button class="ov-mode-btn" id="mode-d" data-mode="d">Dollars</button>
+    </div>
+    <div class="ov-risk-wrap" id="ov-risk-wrap">
+      <span class="form-lbl" style="margin:0;white-space:nowrap">Risk per trade ($)</span>
+      <input type="number" id="ov-risk-input" placeholder="e.g. 100" min="1" step="1"/>
+    </div>
   </div>
   <div class="ov-grid2" id="ov-top"></div>
   <div class="ov-grid2" id="ov-mid"></div>
@@ -550,6 +568,8 @@ let strategies = loadStrategies();
 let newsMode   = false;
 let briefDay   = localStorage.getItem(STORAGE_BRIEFDAY) || 'Monday';
 let mantraChecked = {};
+let statsMode  = localStorage.getItem('tj_statsMode') || 'r'; // 'r' or 'd'
+let riskPerTrade = parseFloat(localStorage.getItem('tj_riskPerTrade')) || 0;
 
 /* ══════════════════════════════════════════════
    HELPERS
@@ -728,6 +748,30 @@ function renderOverview() {
   const pf=totalLost?+(totalWon/totalLost).toFixed(2):(totalWon?'∞':0);
   const exp=trades.length?+(netR/trades.length).toFixed(2):0;
 
+  // Mode setup
+  const isDollar = statsMode === 'd';
+  const risk = riskPerTrade || 0;
+
+  // Sync toggle UI
+  document.getElementById('mode-r').classList.toggle('active', !isDollar);
+  document.getElementById('mode-d').classList.toggle('active', isDollar);
+  document.getElementById('ov-risk-wrap').classList.toggle('show', isDollar);
+  const riskInput = document.getElementById('ov-risk-input');
+  if (riskInput && riskPerTrade) riskInput.value = riskPerTrade;
+
+  // Format helpers
+  const fmtVal = (r, decimals=2) => {
+    if (!isDollar || !risk) return (r>=0?'+':'')+r+'R';
+    const d = +(r * risk).toFixed(0);
+    return (d>=0?'+':'-')+'$'+Math.abs(d).toLocaleString();
+  };
+  const fmtValRaw = (r) => {
+    if (!isDollar || !risk) return r+'R';
+    const d = +(r * risk).toFixed(0);
+    return (d>=0?'':'-')+'$'+Math.abs(d).toLocaleString();
+  };
+  const unitLabel = isDollar && risk ? 'USD' : 'R';
+
   // Streaks
   let maxWin=0,maxLoss=0,curW=0,curL=0;
   trades.forEach(t=>{
@@ -735,9 +779,9 @@ function renderOverview() {
     else{curL++;curW=0;if(curL>maxLoss)maxLoss=curL;}
   });
 
-  // Insight text per card
+  // Insight text
   const wrInsight = wr>=60
-    ? {cls:'green', txt:`${wr}% WR combined with ${avgWin}R avg win is a powerful edge.`}
+    ? {cls:'green', txt:`${wr}% WR combined with ${fmtValRaw(avgWin)} avg win is a powerful edge.`}
     : wr>=50 ? {cls:'amber', txt:`${wr}% WR is above breakeven. Focus on increasing avg win.`}
     : {cls:'red', txt:`${wr}% WR is below 50%. Review your entry criteria.`};
 
@@ -749,15 +793,15 @@ function renderOverview() {
     : {cls:'green',txt:`No losing trades yet — perfect profit factor.`};
 
   const expInsight = exp>0
-    ? {cls:'green',txt:`Every trade you take is worth +${exp}R in expectation. The edge is real.`}
+    ? {cls:'green',txt:`Every trade you take is worth ${fmtVal(exp)} in expectation. The edge is real.`}
     : exp===0 ? {cls:'amber',txt:`Breakeven expectancy. Work on holding winners longer.`}
     : {cls:'red',txt:`Negative expectancy. Re-evaluate your system.`};
 
   const avgLossInsight = losses.length
     ? (Math.abs(avgLoss)<=1.05&&Math.abs(avgLoss)>=0.95)
       ? {cls:'green',txt:`Zero variance on losses. Stop discipline is flawless.`}
-      : Math.abs(avgLoss)<=1.5 ? {cls:'amber',txt:`Avg loss is ${Math.abs(avgLoss)}R. Keep losses tight and consistent.`}
-      : {cls:'red',txt:`Avg loss of ${Math.abs(avgLoss)}R is large. Review stop placement.`}
+      : Math.abs(avgLoss)<=1.5 ? {cls:'amber',txt:`Avg loss is ${fmtValRaw(avgLoss)}. Keep losses tight and consistent.`}
+      : {cls:'red',txt:`Avg loss of ${fmtValRaw(Math.abs(avgLoss))} is large. Review stop placement.`}
     : {cls:'green',txt:`No losses recorded yet.`};
 
   const maxLossInsight = maxLoss<=3
@@ -779,30 +823,41 @@ function renderOverview() {
     </div>`;
   }
 
+  // Net R / $ label
+  const netLabel = isDollar && risk ? 'Net P&L' : 'Net R';
+  const netVal = isDollar && risk ? (netR>=0?'+':'-')+'$'+Math.abs(+(netR*risk).toFixed(0)).toLocaleString() : (netR>=0?'+':'')+netR+'R';
+  const expVal = isDollar && risk ? fmtVal(exp) : (exp>=0?'+':'')+exp+'R';
+  const expSub = isDollar && risk ? `per trade, on average` : 'per trade, on average';
+  const pfWon  = isDollar && risk ? '$'+Math.abs(+(totalWon*risk).toFixed(0)).toLocaleString()+' won' : fmtR(totalWon)+' won';
+  const pfLost = isDollar && risk ? '$'+Math.abs(+(totalLost*risk).toFixed(0)).toLocaleString()+' lost' : fmtR(-totalLost)+' lost';
+  const avgWinVal = isDollar && risk ? '+'+'$'+Math.abs(+(avgWin*risk).toFixed(0)).toLocaleString() : '+'+avgWin+'R';
+  const avgLossVal = isDollar && risk ? (avgLoss<0?'-':'')+'$'+Math.abs(+(avgLoss*risk).toFixed(0)).toLocaleString() : avgLoss+'R';
+  const avgLossSub = isDollar && risk ? `every loss${Math.abs(avgLoss)<=1.05&&Math.abs(avgLoss)>=0.95?' — perfectly flat':''}` : `every loss${Math.abs(avgLoss)<=1.05&&Math.abs(avgLoss)>=0.95?' — perfectly flat':''}`;
+
   document.getElementById('ov-top').innerHTML =
-    ovCard('Net R', (netR>=0?'+':'')+netR+'R', netR>=0?'pos':'neg', `${wins.length}W / ${losses.length}L of ${trades.length} trades`, netRInsight) +
+    ovCard(netLabel, netVal, netR>=0?'pos':'neg', `${wins.length}W / ${losses.length}L of ${trades.length} trades`, netRInsight) +
     ovCard('Win Rate', wr+'%', wr>=60?'pos':wr>=50?'amb':'neg', `${wins.length} wins from ${trades.length} trades`, wrInsight);
 
   document.getElementById('ov-mid').innerHTML =
-    ovCard('Expectancy', (exp>=0?'+':'')+exp+'R', exp>=0?'pos':'neg', 'per trade, on average', expInsight) +
-    ovCard('Profit Factor', pf, typeof pf==='number'?(pf>=2?'pos':pf>=1?'amb':'neg'):'pos', `${fmtR(totalWon)} won · ${fmtR(-totalLost)} lost`, pfInsight);
+    ovCard('Expectancy', expVal, exp>=0?'pos':'neg', expSub, expInsight) +
+    ovCard('Profit Factor', pf, typeof pf==='number'?(pf>=2?'pos':pf>=1?'amb':'neg'):'pos', `${pfWon} · ${pfLost}`, pfInsight);
 
-  document.getElementById('ov-streaks').innerHTML =
+  document.getElementById('ov-avgrow').innerHTML =
     `<div class="ov-card">
       <div class="ov-lbl">Avg Win</div>
-      <div class="ov-val pos">+${avgWin}R</div>
+      <div class="ov-val pos">${avgWinVal}</div>
       <div class="ov-sub">per winning trade</div>
       <div class="ov-insight"><span class="oi-icon">💡</span><span class="ov-insight-txt green">${avgWin>=2?'Strong avg win. Your system captures big moves.':'Work on holding winners to at least 2R.'}</span></div>
     </div>` +
     `<div class="ov-card">
       <div class="ov-lbl">Avg Loss</div>
-      <div class="ov-val neg">${avgLoss}R</div>
-      <div class="ov-sub">every loss${Math.abs(avgLoss)<=1.05&&Math.abs(avgLoss)>=0.95?' — perfectly flat':''}</div>
+      <div class="ov-val neg">${avgLossVal}</div>
+      <div class="ov-sub">${avgLossSub}</div>
       <div class="ov-insight"><span class="oi-icon">💡</span><span class="ov-insight-txt ${avgLossInsight.cls}">${avgLossInsight.txt}</span></div>
     </div>`;
 
   // Streaks
-  const streakHTML =
+  document.getElementById('ov-streaks').innerHTML =
     `<div class="ov-card">
       <div class="ov-lbl">Max Win Streak</div>
       <div class="ov-streak-val pos">${maxWin} trade${maxWin!==1?'s':''}</div>
@@ -815,30 +870,14 @@ function renderOverview() {
       <div class="ov-insight"><span class="oi-icon">💡</span><span class="ov-insight-txt ${maxLossInsight.cls}">${maxLossInsight.txt}</span></div>
     </div>`;
 
-  // Avg win / avg loss row
-  document.getElementById('ov-avgrow').innerHTML =
-    `<div class="ov-card">
-      <div class="ov-lbl">Avg Win</div>
-      <div class="ov-val pos">+${avgWin}R</div>
-      <div class="ov-sub">per winning trade</div>
-      <div class="ov-insight"><span class="oi-icon">💡</span><span class="ov-insight-txt green">${avgWin>=2?'Strong avg win. Your system captures big moves.':'Work on holding winners to at least 2R.'}</span></div>
-    </div>` +
-    `<div class="ov-card">
-      <div class="ov-lbl">Avg Loss</div>
-      <div class="ov-val neg">${avgLoss}R</div>
-      <div class="ov-sub">every loss${Math.abs(avgLoss)<=1.05&&Math.abs(avgLoss)>=0.95?' — perfectly flat':''}</div>
-      <div class="ov-insight"><span class="oi-icon">💡</span><span class="ov-insight-txt ${avgLossInsight.cls}">${avgLossInsight.txt}</span></div>
-    </div>`;
-
   // Equity chart
   let cum=0; const labs=['Start'], dat=[0];
   trades.forEach(t=>{ cum=+(cum+t.r).toFixed(4); labs.push('#'+t.num); dat.push(cum); });
-  setTimeout(()=>drawLineChart('eq-canvas', labs, dat, cum>=0?'#3bc98a':'#e2534a'), 0);
+  const chartDat = isDollar && risk ? dat.map(v=>+(v*risk).toFixed(0)) : dat;
+  setTimeout(()=>drawLineChart('eq-canvas', labs, chartDat, cum>=0?'#3bc98a':'#e2534a'), 0);
 
   // ── What the Data Shows ──
   const finds = [];
-
-  // 2nd attempt
   const a2=trades.filter(t=>t.attempt==='2nd');
   const a1=trades.filter(t=>t.attempt==='1st');
   if(a2.length>=2){
@@ -846,8 +885,6 @@ function renderOverview() {
     finds.push({icon:'🔥',title:`2nd shot wins ${s2.wr.toFixed(0)}% of the time`,
       body:`${s2.wins}W/${a2.length-s2.wins}L across ${a2.length} second attempts. ${s2.wr>s1.wr?`Higher than 1st attempt (${s1.wr.toFixed(0)}%).`:`1st attempt is stronger at ${s1.wr.toFixed(0)}%.`}`});
   }
-
-  // Best vs worst strategy
   const byS=groupBy(trades,'strategy');
   const sArr=Object.entries(byS).map(([k,v])=>({name:k,...gStats(v)})).filter(x=>x.count>=2).sort((a,b)=>b.wr-a.wr);
   if(sArr.length>=2){
@@ -855,40 +892,31 @@ function renderOverview() {
     finds.push({icon:'⚡',title:`${best.name} outperforms ${worst.name} — ${best.wr.toFixed(0)}% vs ${worst.wr.toFixed(0)}%`,
       body:`${best.name}: ${best.wins}W/${best.count-best.wins}L = ${best.wr.toFixed(0)}%. ${worst.name}: ${worst.wins}W/${worst.count-worst.wins}L = ${worst.wr.toFixed(0)}%.`});
   }
-
-  // Session breakdown
   const bySess=groupBy(trades,'session');
   const sessArr=Object.entries(bySess).map(([k,v])=>({name:k,...gStats(v)})).filter(x=>x.count>=2).sort((a,b)=>b.wr-a.wr);
   if(sessArr.length>=2){
     const best=sessArr[0];
     finds.push({icon:'🕐',title:`${best.name} Session is your best — ${best.wr.toFixed(0)}% win rate`,
-      body:sessArr.map(s=>`${s.name}: ${s.wins}W/${s.count-s.wins}L = ${s.wr.toFixed(0)}% · Net R: ${fmtR(s.netR)}`).join('. ')+'.'});
+      body:sessArr.map(s=>`${s.name}: ${s.wins}W/${s.count-s.wins}L = ${s.wr.toFixed(0)}% · Net: ${isDollar&&risk?'$'+Math.abs(+(s.netR*risk).toFixed(0)).toLocaleString():fmtR(s.netR)+'R'}`).join('. ')+'.'});
   }
-
-  // Entry type
   const byE=groupBy(trades,'entry');
   const eArr=Object.entries(byE).map(([k,v])=>({name:k,...gStats(v)})).filter(x=>x.count>=2).sort((a,b)=>b.wr-a.wr);
   if(eArr.length>=2){
     const best=eArr[0];
     finds.push({icon:'🎯',title:`${best.name} entries outperform — ${best.wr.toFixed(0)}% win rate`,
-      body:eArr.map(e=>`${e.name}: ${e.wins}W/${e.count-e.wins}L = ${e.wr.toFixed(0)}% · Net R: ${fmtR(e.netR)}`).join('. ')+'.'});
+      body:eArr.map(e=>`${e.name}: ${e.wins}W/${e.count-e.wins}L = ${e.wr.toFixed(0)}% · Net: ${isDollar&&risk?'$'+Math.abs(+(e.netR*risk).toFixed(0)).toLocaleString():fmtR(e.netR)+'R'}`).join('. ')+'.'});
   }
-
-  // Best day
   const byDay=DAYS.map(d=>{const dt=trades.filter(t=>t.day===d);return dt.length?{day:d,...gStats(dt)}:null;}).filter(Boolean).sort((a,b)=>b.wr-a.wr);
   if(byDay.length>=2){
     const best=byDay[0],worst=byDay[byDay.length-1];
     finds.push({icon:'📅',title:`${best.day} is your best day — ${best.wr.toFixed(0)}% win rate`,
-      body:`Net R on ${best.day}: ${fmtR(best.netR)} across ${best.count} trade${best.count!==1?'s':''}. ${worst.count>=2?`Toughest day: ${worst.day} at ${worst.wr.toFixed(0)}%.`:''}`});
+      body:`Net on ${best.day}: ${isDollar&&risk?'$'+Math.abs(+(best.netR*risk).toFixed(0)).toLocaleString():fmtR(best.netR)+'R'} across ${best.count} trade${best.count!==1?'s':''}. ${worst.count>=2?`Toughest day: ${worst.day} at ${worst.wr.toFixed(0)}%.`:''}`});
   }
-
-  // Stop discipline
   if(losses.length>=3){
     const allLoss=losses.map(t=>Math.abs(t.r));
     const maxL=Math.max(...allLoss),minL=Math.min(...allLoss);
-    const variance=(maxL-minL).toFixed(2);
-    finds.push({icon:'🛡',title:`Stop discipline — avg loss ${Math.abs(avgLoss).toFixed(2)}R`,
-      body:Math.abs(avgLoss)<=1.05?`Every loss is near -1R. Stop placement is consistent and disciplined.`:`Loss range: ${minL.toFixed(2)}R to ${maxL.toFixed(2)}R (spread of ${variance}R). Tighten stop consistency.`});
+    finds.push({icon:'🛡',title:`Stop discipline — avg loss ${fmtValRaw(Math.abs(avgLoss))}`,
+      body:Math.abs(avgLoss)<=1.05?`Every loss is near -1R. Stop placement is consistent and disciplined.`:`Loss range: ${fmtValRaw(minL)} to ${fmtValRaw(maxL)}. Tighten stop consistency.`});
   }
 
   const insightsEl = document.getElementById('ov-insights');
@@ -912,7 +940,7 @@ function renderOverview() {
     document.getElementById('news-grid').innerHTML=`
       <div><div class="ni-lbl">News Days WR</div><div class="ni-val ${ns.wr>=50?'pos':'neg'}">${ns.count?ns.wr.toFixed(0)+'%':'—'}</div></div>
       <div><div class="ni-lbl">Quiet Days WR</div><div class="ni-val ${qs.wr>=50?'pos':'neg'}">${qs.count?qs.wr.toFixed(0)+'%':'—'}</div></div>
-      <div><div class="ni-lbl">News Net R</div><div class="ni-val ${ns.netR>=0?'pos':'neg'}">${ns.count?fmtR(ns.netR):'—'}</div></div>
+      <div><div class="ni-lbl">News Net R</div><div class="ni-val ${ns.netR>=0?'pos':'neg'}">${ns.count?(isDollar&&risk?'$'+Math.abs(+(ns.netR*risk).toFixed(0)).toLocaleString():fmtR(ns.netR)):'—'}</div></div>
     `;
   }
 }
@@ -1475,6 +1503,23 @@ function renderAll() {
 }
 
 document.getElementById('f-date').valueAsDate = new Date();
+
+// R / $ mode toggle
+document.querySelectorAll('.ov-mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    statsMode = btn.dataset.mode;
+    localStorage.setItem('tj_statsMode', statsMode);
+    renderOverview();
+  });
+});
+
+// Risk per trade input
+document.getElementById('ov-risk-input').addEventListener('input', e => {
+  riskPerTrade = parseFloat(e.target.value) || 0;
+  localStorage.setItem('tj_riskPerTrade', riskPerTrade);
+  renderOverview();
+});
+
 renderAll();
 </script>
 </body>
