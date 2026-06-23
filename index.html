@@ -228,6 +228,8 @@ body{min-height:100vh}
 .strat-empty{text-align:center;color:var(--muted);font-size:13px;padding:28px 0}
 .import-btn{background:var(--surface);color:var(--subtle);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);transition:border-color .15s,color .15s}
 .import-btn:hover{border-color:var(--accent);color:var(--accent)}
+.brief-insight-row{display:flex;gap:12px;align-items:flex-start}
+.brief-reminder{font-size:12px;color:var(--subtle);line-height:1.6;padding:10px 12px;background:var(--surface2);border-radius:7px;border-left:3px solid var(--accent)}
 
 /* ── FORM ── */
 .form-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-top:14px}
@@ -551,14 +553,7 @@ const DEFAULT_STRATEGIES = [
 
 
 function loadData() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_TRADES));
-    if (saved && saved.length) return saved;
-    // Seed with imported Tradezella trades
-    const seed = [{"date":"2026-06-05","day":"Friday","dir":"Sell","result":"Loss","r":-357.0,"strategy":"Untagged","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29810.25 Exit: 29869.25 Qty: 3 | Net P&L: $-357.0","num":1},{"date":"2026-06-08","day":"Monday","dir":"Sell","result":"Loss","r":-220.5,"strategy":"Continuation w/ HTF FVG","session":"London","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29017.5 Exit: 29053.75 Qty: 3 | Net P&L: $-220.5","num":2},{"date":"2026-06-08","day":"Monday","dir":"Buy","result":"Loss","r":-36.0,"strategy":"iFVG Model","session":"London","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29073.25 Exit: 29067.75 Qty: 3 | Net P&L: $-36.0 (BE)","num":3},{"date":"2026-06-08","day":"Monday","dir":"Buy","result":"Loss","r":-246.0,"strategy":"iFVG Model","session":"London","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29103.5 Exit: 29063.0 Qty: 3 | Net P&L: $-246.0","num":4},{"date":"2026-06-08","day":"Monday","dir":"Sell","result":"Loss","r":-309.0,"strategy":"Continuation w/ HTF FVG","session":"London","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29056.5 Exit: 29107.5 Qty: 3 | Net P&L: $-309.0","num":5},{"date":"2026-06-08","day":"Monday","dir":"Buy","result":"Win","r":1105.5,"strategy":"iFVG Model, CISD","session":"London","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29117.5 Exit: 29219.5 Qty: 6 | Net P&L: $1105.5","num":6},{"date":"2026-06-09","day":"Tuesday","dir":"Sell","result":"Loss","r":-267.0,"strategy":"iFVG Model","session":"London","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29598.0 Exit: 29619.75 Qty: 6 | Net P&L: $-267.0","num":7},{"date":"2026-06-09","day":"Tuesday","dir":"Sell","result":"Loss","r":-204.0,"strategy":"Untagged","session":"London","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29597.25 Exit: 29613.75 Qty: 6 | Net P&L: $-204.0","num":8},{"date":"2026-06-09","day":"Tuesday","dir":"Buy","result":"Loss","r":-68.0,"strategy":"Untagged","session":"London","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29631.75 Exit: 29632.25 Qty: 12 | Net P&L: $-68.0","num":9},{"date":"2026-06-09","day":"Tuesday","dir":"Sell","result":"Loss","r":-168.0,"strategy":"Untagged","session":"London","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29633.0 Exit: 29643.25 Qty: 16 | Net P&L: $-168.0","num":10},{"date":"2026-06-09","day":"Tuesday","dir":"Buy","result":"Loss","r":-501.5,"strategy":"Untagged","session":"London","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29675.5 Exit: 29644.65625 Qty: 8 | Net P&L: $-501.5","num":11},{"date":"2026-06-09","day":"Tuesday","dir":"Sell","result":"Loss","r":-220.0,"strategy":"iFVG Model","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29659.25 Exit: 29672.5 Qty: 8 | Net P&L: $-220.0","num":12},{"date":"2026-06-09","day":"Tuesday","dir":"Buy","result":"Win","r":347.5,"strategy":"iFVG Model","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29727.75 Exit: 29763.0 Qty: 5 | Net P&L: $347.5","num":13},{"date":"2026-06-09","day":"Tuesday","dir":"Sell","result":"Win","r":1405.0,"strategy":"iFVG Model","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29715.25 Exit: 29574.25 Qty: 5 | Net P&L: $1405.0","num":14},{"date":"2026-06-10","day":"Wednesday","dir":"Buy","result":"Win","r":1142.5,"strategy":"CISD","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 28976.25 Exit: 29091.0 Qty: 5 | Net P&L: $1142.5","num":15},{"date":"2026-06-11","day":"Thursday","dir":"Buy","result":"Loss","r":-6.5,"strategy":"CISD","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 28758.0 Exit: 28757.42 Qty: 3 | Net P&L: $-6.5 (BE)","num":16},{"date":"2026-06-11","day":"Thursday","dir":"Sell","result":"Loss","r":-240.0,"strategy":"iFVG Model","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 28671.0 Exit: 28710.5 Qty: 3 | Net P&L: $-240.0","num":17},{"date":"2026-06-11","day":"Thursday","dir":"Buy","result":"Win","r":1071.0,"strategy":"iFVG Model","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 28749.0 Exit: 28928.0 Qty: 3 | Net P&L: $1071.0","num":18},{"date":"2026-06-12","day":"Friday","dir":"Sell","result":"Loss","r":-238.5,"strategy":"Continuation w/ HTF FVG","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29353.25 Exit: 29392.5 Qty: 3 | Net P&L: $-238.5","num":19},{"date":"2026-06-12","day":"Friday","dir":"Sell","result":"Win","r":403.5,"strategy":"Continuation w/ HTF FVG","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 29322.75 Exit: 29255.0 Qty: 3 | Net P&L: $403.5","num":20},{"date":"2026-06-15","day":"Monday","dir":"Buy","result":"Loss","r":-392.0,"strategy":"Untagged","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 30746.5 Exit: 30722.5 Qty: 8 | Net P&L: $-392.0","num":21},{"date":"2026-06-15","day":"Monday","dir":"Sell","result":"Loss","r":-340.0,"strategy":"Untagged","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 30705.5 Exit: 30726.25 Qty: 8 | Net P&L: $-340.0","num":22},{"date":"2026-06-16","day":"Tuesday","dir":"Sell","result":"Win","r":368.0,"strategy":"iFVG Model","session":"Asia","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 30806.5 Exit: 30783.0 Qty: 8 | Net P&L: $368.0","num":23},{"date":"2026-06-16","day":"Tuesday","dir":"Sell","result":"Loss","r":-27.5,"strategy":"Untagged","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 30830.25 Exit: 30832.5 Qty: 5 | Net P&L: $-27.5 (BE)","num":24},{"date":"2026-06-16","day":"Tuesday","dir":"Sell","result":"Loss","r":-245.0,"strategy":"Untagged","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 30820.5 Exit: 30844.5 Qty: 5 | Net P&L: $-245.0","num":25},{"date":"2026-06-16","day":"Tuesday","dir":"Sell","result":"Win","r":550.0,"strategy":"Untagged","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 30805.0 Exit: 30749.5 Qty: 5 | Net P&L: $550.0","num":26},{"date":"2026-06-17","day":"Wednesday","dir":"Sell","result":"Loss","r":-410.0,"strategy":"Untagged","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 30439.0 Exit: 30479.5 Qty: 5 | Net P&L: $-410.0","num":27},{"date":"2026-06-17","day":"Wednesday","dir":"Buy","result":"Loss","r":-315.0,"strategy":"Untagged","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 30532.0 Exit: 30501.0 Qty: 5 | Net P&L: $-315.0","num":28},{"date":"2026-06-17","day":"Wednesday","dir":"Sell","result":"Loss","r":-405.0,"strategy":"Untagged","session":"NY AM","entry":"Conservative","attempt":"1st","note":"MNQ | Entry: 30442.5 Exit: 30482.5 Qty: 5 | Net P&L: $-405.0","num":29}];
-    localStorage.setItem(STORAGE_TRADES, JSON.stringify(seed));
-    return seed;
-  } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(STORAGE_TRADES)) || []; } catch(e) { return []; }
 }
 function loadStrategies() {
   try { const s = JSON.parse(localStorage.getItem(STORAGE_STRATEGIES)); return s && s.length ? s : DEFAULT_STRATEGIES; } catch(e) { return DEFAULT_STRATEGIES; }
@@ -966,23 +961,53 @@ function renderBriefContent() {
   const s=gStats(dt);
   if (!dt.length) { el.innerHTML=`<div class="card"><div class="empty">No trades on ${briefDay} yet.</div></div>`; return; }
 
-  // Risk
+  // ── Risk rating ──
   let rc='low', rl='Low Risk'; const factors=[];
-  if (s.wr<45){rc='high';rl='High Risk';factors.push(`Win rate on ${briefDay} is below 45% (${s.wr.toFixed(0)}%)`);}
+  if(s.wr<45){rc='high';rl='High Risk';factors.push(`Win rate on ${briefDay} is below 45% (${s.wr.toFixed(0)}%)`);}
   else if(s.wr<55){rc='med';rl='Medium Risk';factors.push(`Win rate on ${briefDay} is moderate (${s.wr.toFixed(0)}%)`);}
   else{factors.push(`Win rate on ${briefDay} is solid (${s.wr.toFixed(0)}%)`);}
-  if(s.netR<0){if(rc!=='high')rc='med';factors.push(`Net R on ${briefDay} is negative (${fmtR(s.netR)})`);}
-  else{factors.push(`Net R is positive (${fmtR(s.netR)})`);}
-
-  // Streak
+  if(s.netR<0){if(rc!=='high')rc='med';factors.push(`Net P&L on ${briefDay} is negative (${fmtR(s.netR)})`);}
+  else{factors.push(`Net P&L is positive (${fmtR(s.netR)})`);}
   const sorted=dt.slice().sort((a,b)=>a.date>b.date?1:-1);
   let streak=0,last=sorted[sorted.length-1]?.result;
   for(let i=sorted.length-1;i>=0;i--){if(sorted[i].result!==last)break;streak+=(last==='Win'?1:-1);}
   if(streak<=-2){rc='high';rl='High Risk';factors.push(`${Math.abs(streak)}-loss streak on ${briefDay}`);}
 
-  // Strategies
+  // ── 1. Day performance stats ──
+  const avgPerTrade = s.count ? s.netR/s.count : 0;
+  const wins = dt.filter(t=>t.result==='Win');
+  const losses = dt.filter(t=>t.result==='Loss');
+  const avgWin = wins.length ? +(wins.reduce((a,t)=>a+t.r,0)/wins.length).toFixed(2) : 0;
+  const avgLoss = losses.length ? +(losses.reduce((a,t)=>a+t.r,0)/losses.length).toFixed(2) : 0;
+
+  // ── 2. Best strategy on this day ──
   const byS=groupBy(dt,'strategy');
   const ss=Object.entries(byS).map(([k,v])=>({name:k,...gStats(v)})).sort((a,b)=>b.wr-a.wr);
+  const bestStrat = ss.length ? ss[0] : null;
+  const worstStrat = ss.length>1 ? ss[ss.length-1] : null;
+
+  // ── 4. Patterns ──
+  const a2day = dt.filter(t=>t.attempt==='2nd');
+  const a1day = dt.filter(t=>t.attempt==='1st');
+  const s2day = gStats(a2day), s1day = gStats(a1day);
+  const bySess = groupBy(dt,'session');
+  const sessArr = Object.entries(bySess).map(([k,v])=>({name:k,...gStats(v)})).filter(x=>x.count>=1).sort((a,b)=>b.wr-a.wr);
+
+  // ── 5. Pre-trade reminders ──
+  const allDayStats = DAYS.map(d=>{const t=trades.filter(x=>x.day===d);return t.length?{day:d,...gStats(t)}:null;}).filter(Boolean);
+  const bestDay = [...allDayStats].sort((a,b)=>b.wr-a.wr)[0];
+  const worstDay = [...allDayStats].sort((a,b)=>a.wr-b.wr)[0];
+  const allByS = groupBy(trades,'strategy');
+  const allSArr = Object.entries(allByS).map(([k,v])=>({name:k,...gStats(v)})).filter(x=>x.count>=2).sort((a,b)=>b.wr-a.wr);
+  const reminders = [];
+  if(bestStrat && bestStrat.count>=2) reminders.push(`📌 Your best strategy on ${briefDay}s is <strong>${bestStrat.name}</strong> (${bestStrat.wr.toFixed(0)}% WR). Prioritise this setup today.`);
+  if(worstStrat && worstStrat.count>=2 && worstStrat.wr<50) reminders.push(`⚠️ <strong>${worstStrat.name}</strong> has only ${worstStrat.wr.toFixed(0)}% WR on ${briefDay}s. Be selective or skip it.`);
+  if(a2day.length>=2) reminders.push(`🔁 2nd attempts on ${briefDay}s win ${s2day.wr.toFixed(0)}% of the time. ${s2day.wr>=60?'The patience pays off — wait for the re-entry.':'Be cautious re-entering after a loss today.'}`);
+  if(sessArr.length>=1) reminders.push(`🕐 Your best session on ${briefDay}s is <strong>${sessArr[0].name}</strong> (${sessArr[0].wr.toFixed(0)}% WR). ${sessArr.length>1?`Weakest: ${sessArr[sessArr.length-1].name} (${sessArr[sessArr.length-1].wr.toFixed(0)}%).`:''}`);
+  if(streak<=-2) reminders.push(`🚨 You have a ${Math.abs(streak)}-loss streak on ${briefDay}s. Consider reducing size or sitting out early.`);
+  if(allSArr.length) reminders.push(`⚡ Your best overall strategy is <strong>${allSArr[0].name}</strong> (${allSArr[0].wr.toFixed(0)}% WR). Trust your A-setup today.`);
+  if(bestDay && briefDay===worstDay?.day && worstDay.count>=3) reminders.push(`📉 ${briefDay} is historically your toughest day (${worstDay.wr.toFixed(0)}% WR). Trade smaller, be more selective.`);
+  if(bestDay && briefDay===bestDay.day && bestDay.count>=3) reminders.push(`✅ ${briefDay} is historically your best day (${bestDay.wr.toFixed(0)}% WR). Conditions are in your favour — execute your plan.`);
 
   el.innerHTML=`
     <div class="brief-top">
@@ -992,9 +1017,9 @@ function renderBriefContent() {
         <div class="sub">${s.count} trade${s.count!==1?'s':''} total</div>
       </div>
       <div class="brief-stat">
-        <div class="lbl">Net R</div>
+        <div class="lbl">Net P&L</div>
         <div class="val ${s.netR>=0?'pos':'neg'}">${fmtR(s.netR)}</div>
-        <div class="sub">Avg: ${fmtR(s.count?s.netR/s.count:0)}/trade</div>
+        <div class="sub">Avg: ${fmtR(avgPerTrade)}/trade</div>
       </div>
       <div class="brief-stat">
         <div class="lbl">Wins / Losses</div>
@@ -1009,18 +1034,65 @@ function renderBriefContent() {
         <ul class="risk-list">${factors.map(f=>`<li>${f}</li>`).join('')}</ul>
       </div>
     </div>
-    <div class="card">
-      <div class="sec-title">Strategies on ${briefDay}</div>
-      <table class="strat-tbl">
-        <thead><tr><th>Strategy</th><th>Trades</th><th style="text-align:right">Win Rate</th><th style="text-align:right">Net R</th></tr></thead>
+
+    <div class="card" style="margin-bottom:10px">
+      <div class="sec-title">${briefDay} Performance Breakdown</div>
+      <div class="ov-grid2" style="margin-top:10px">
+        <div class="ov-card" style="padding:14px 16px">
+          <div class="ov-lbl">Avg Win</div>
+          <div class="ov-val pos" style="font-size:22px">${avgWin>=0?'+':''}${fmtR(avgWin)}</div>
+          <div class="ov-sub">${wins.length} winning trade${wins.length!==1?'s':''}</div>
+        </div>
+        <div class="ov-card" style="padding:14px 16px">
+          <div class="ov-lbl">Avg Loss</div>
+          <div class="ov-val neg" style="font-size:22px">${fmtR(avgLoss)}</div>
+          <div class="ov-sub">${losses.length} losing trade${losses.length!==1?'s':''}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:10px">
+      <div class="sec-title">Best Strategy on ${briefDay}s</div>
+      <table class="strat-tbl" style="margin-top:8px">
+        <thead><tr><th>Strategy</th><th>Trades</th><th style="text-align:right">Win Rate</th><th style="text-align:right">Net P&L</th></tr></thead>
         <tbody>${ss.map(x=>`<tr>
-          <td><strong>${x.name}</strong><div class="wr-bar ${x.wr>=60?'g':x.wr<50?'r':''}" style="width:${x.wr.toFixed(0)}%"></div></td>
+          <td><strong>${x.name}</strong><div class="wr-bar ${x.wr>=60?'g':x.wr<50?'r':''}" style="width:${Math.min(100,x.wr).toFixed(0)}%"></div></td>
           <td style="color:var(--muted)">${x.count}</td>
           <td style="text-align:right;color:${x.wr>=50?'var(--green)':'var(--red)'}">${x.wr.toFixed(0)}%</td>
           <td style="text-align:right;color:${x.netR>=0?'var(--green)':'var(--red)'}">${fmtR(x.netR)}</td>
         </tr>`).join('')}</tbody>
       </table>
     </div>
+
+    ${a2day.length>=1 || sessArr.length>=1 ? `
+    <div class="card" style="margin-bottom:10px">
+      <div class="sec-title">Patterns on ${briefDay}s</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+        ${a2day.length>=1?`<div class="brief-insight-row">
+          <span class="ov-find-icon">🔁</span>
+          <div>
+            <div class="ov-find-title">2nd Attempt: ${s2day.wr.toFixed(0)}% Win Rate</div>
+            <div class="ov-find-body">${a2day.length} second attempt${a2day.length!==1?'s':''} on ${briefDay}s — ${s2day.wins}W / ${a2day.length-s2day.wins}L. ${a1day.length?`1st attempt is ${s1day.wr.toFixed(0)}%.`:''}</div>
+          </div>
+        </div>`:''}
+        ${sessArr.map(sess=>`<div class="brief-insight-row">
+          <span class="ov-find-icon">🕐</span>
+          <div>
+            <div class="ov-find-title">${sess.name} Session — ${sess.wr.toFixed(0)}% Win Rate</div>
+            <div class="ov-find-body">${sess.wins}W / ${sess.count-sess.wins}L · Net P&L: ${fmtR(sess.netR)} across ${sess.count} trade${sess.count!==1?'s':''}</div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`:''
+    }
+
+    ${reminders.length?`
+    <div class="card">
+      <div class="sec-title">Pre-Trade Reminders for ${briefDay}</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+        ${reminders.map(r=>`<div class="brief-reminder">${r}</div>`).join('')}
+      </div>
+    </div>`:''}
   `;
 }
 
