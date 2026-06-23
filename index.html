@@ -212,7 +212,22 @@ body{min-height:100vh}
 .delete-btn{background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:2px 4px;border-radius:4px;transition:color .15s,background .15s;line-height:1;flex-shrink:0}
 .delete-btn:hover{color:var(--red);background:var(--red-bg)}
 
-/* ── STRATEGIES ── */
+/* ── PROGRESSION ── */
+.prog-strat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:12px}
+.prog-strat-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.prog-strat-name{font-size:15px;font-weight:700;color:var(--bright)}
+.prog-strat-meta{font-size:11px;color:var(--muted)}
+.prog-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+@media(max-width:480px){.prog-stats-row{grid-template-columns:repeat(2,1fr)}}
+.prog-stat{background:var(--surface2);border-radius:8px;padding:10px 12px;text-align:center}
+.prog-stat .ps-val{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;margin-bottom:3px}
+.prog-stat .ps-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.prog-trend-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px}
+.prog-trend-icon{font-size:14px;flex-shrink:0}
+.prog-trend-txt{color:var(--subtle);line-height:1.5}
+.prog-chart-wrap{position:relative;height:120px;margin-top:12px}
+.prog-window-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.prog-no-data{text-align:center;color:var(--muted);font-size:13px;padding:32px 0}
 .strat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:10px}
 .strat-card-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
 .strat-name{font-size:15px;font-weight:600;color:var(--bright)}
@@ -313,6 +328,7 @@ textarea{resize:none;height:52px}
   <button class="tab-btn" data-tab="patterns">Patterns</button>
   <button class="tab-btn" data-tab="tradelog">Trade Log</button>
   <button class="tab-btn" data-tab="strategies">Strategies</button>
+  <button class="tab-btn" data-tab="progression">Progression</button>
 </div>
 
 <!-- OVERVIEW -->
@@ -487,6 +503,10 @@ textarea{resize:none;height:52px}
     </div>
     <button class="add-btn" id="add-strat-btn">+ Add Strategy</button>
   </div>
+</div>
+<!-- PROGRESSION -->
+<div class="panel" id="panel-progression">
+  <div id="prog-content"></div>
 </div>
 
 </div><!-- /app -->
@@ -1637,6 +1657,106 @@ document.getElementById('import-confirm-btn').addEventListener('click', () => {
 });
 
 /* ══════════════════════════════════════════════
+   PROGRESSION
+══════════════════════════════════════════════ */
+function renderProgression() {
+  const el = document.getElementById('prog-content');
+  if (!trades.length) { el.innerHTML = '<div class="prog-no-data">Log at least a few trades to see progression.</div>'; return; }
+
+  const WINDOW = 20;
+  const byS = groupBy(trades, 'strategy');
+  const stratNames = Object.keys(byS).sort((a,b) => byS[b].length - byS[a].length);
+
+  el.innerHTML = stratNames.map(name => {
+    const st = byS[name].slice().sort((a,b) => a.num - b.num);
+    const recent = st.slice(-WINDOW);
+    const all = gStats(st);
+    const rec = gStats(recent);
+
+    // Rolling 5-trade win rate windows for sparkline
+    const sparkPoints = [];
+    for (let i = 4; i < recent.length; i++) {
+      const chunk = recent.slice(i-4, i+1);
+      sparkPoints.push(+(chunk.filter(t=>t.result==='Win').length/chunk.length*100).toFixed(0));
+    }
+
+    // Trend: compare first half vs second half of recent window
+    const half = Math.floor(recent.length / 2);
+    const firstHalf = gStats(recent.slice(0, half));
+    const secondHalf = gStats(recent.slice(half));
+    const wrTrend = recent.length >= 6 ? secondHalf.wr - firstHalf.wr : null;
+    const rTrend = recent.length >= 6 ? secondHalf.netR - firstHalf.netR : null;
+
+    // Trend label
+    const trendLines = [];
+    if (wrTrend !== null) {
+      if (wrTrend >= 10) trendLines.push({icon:'📈', txt:`Win rate trending UP +${wrTrend.toFixed(0)}% in recent trades vs earlier. Your ${name} execution is improving.`});
+      else if (wrTrend <= -10) trendLines.push({icon:'📉', txt:`Win rate trending DOWN ${wrTrend.toFixed(0)}% in recent trades. Review recent ${name} setups.`});
+      else trendLines.push({icon:'➡️', txt:`Win rate is stable across recent ${name} trades (${firstHalf.wr.toFixed(0)}% → ${secondHalf.wr.toFixed(0)}%).`});
+    }
+    if (rTrend !== null) {
+      if (rTrend > 0) trendLines.push({icon:'💹', txt:`Net P&L improving in recent half: ${fmtR(secondHalf.netR)} vs ${fmtR(firstHalf.netR)} earlier.`});
+      else trendLines.push({icon:'⚠️', txt:`Net P&L declining in recent half: ${fmtR(secondHalf.netR)} vs ${fmtR(firstHalf.netR)} earlier.`});
+    }
+
+    // Best/worst trade in window
+    const bestTrade = [...recent].sort((a,b)=>b.r-a.r)[0];
+    const worstTrade = [...recent].sort((a,b)=>a.r-b.r)[0];
+
+    const canvasId = `prog-canvas-${name.replace(/[^a-z0-9]/gi,'_')}`;
+
+    return `
+    <div class="prog-strat-card">
+      <div class="prog-strat-hdr">
+        <div class="prog-strat-name">${name}</div>
+        <div class="prog-strat-meta">Last ${recent.length} of ${st.length} total trade${st.length!==1?'s':''}</div>
+      </div>
+      <div class="prog-stats-row">
+        <div class="prog-stat">
+          <div class="ps-val ${rec.wr>=50?'pos':'neg'}">${rec.wr.toFixed(0)}%</div>
+          <div class="ps-lbl">Win Rate</div>
+        </div>
+        <div class="prog-stat">
+          <div class="ps-val ${rec.netR>=0?'pos':'neg'}">${fmtR(rec.netR)}</div>
+          <div class="ps-lbl">Net P&L</div>
+        </div>
+        <div class="prog-stat">
+          <div class="ps-val pos">+${fmtR(bestTrade.r)}</div>
+          <div class="ps-lbl">Best Trade</div>
+        </div>
+        <div class="prog-stat">
+          <div class="ps-val neg">${fmtR(worstTrade.r)}</div>
+          <div class="ps-lbl">Worst Trade</div>
+        </div>
+      </div>
+      ${trendLines.map(t=>`<div class="prog-trend-row"><span class="prog-trend-icon">${t.icon}</span><span class="prog-trend-txt">${t.txt}</span></div>`).join('')}
+      ${sparkPoints.length >= 2 ? `
+        <div class="prog-window-lbl" style="margin-top:14px">Rolling 5-trade Win Rate</div>
+        <div class="prog-chart-wrap"><canvas id="${canvasId}"></canvas></div>
+      ` : ''}
+    </div>`;
+  }).join('');
+
+  // Draw sparklines after render
+  setTimeout(() => {
+    stratNames.forEach(name => {
+      const st = byS[name].slice().sort((a,b) => a.num - b.num);
+      const recent = st.slice(-WINDOW);
+      const sparkPoints = [];
+      for (let i = 4; i < recent.length; i++) {
+        const chunk = recent.slice(i-4, i+1);
+        sparkPoints.push(+(chunk.filter(t=>t.result==='Win').length/chunk.length*100).toFixed(0));
+      }
+      if (sparkPoints.length < 2) return;
+      const canvasId = `prog-canvas-${name.replace(/[^a-z0-9]/gi,'_')}`;
+      const labels = sparkPoints.map((_,i) => `T${i+5}`);
+      const color = sparkPoints[sparkPoints.length-1] >= sparkPoints[0] ? '#3bc98a' : '#e2534a';
+      drawLineChart(canvasId, labels, sparkPoints, color);
+    });
+  }, 0);
+}
+
+/* ══════════════════════════════════════════════
    MASTER RENDER
 ══════════════════════════════════════════════ */
 function renderAll() {
@@ -1651,6 +1771,7 @@ function renderAll() {
   renderPatterns();
   renderTrades();
   renderStrategies();
+  renderProgression();
 }
 
 document.getElementById('f-date').valueAsDate = new Date();
