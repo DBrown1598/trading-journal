@@ -414,7 +414,8 @@ textarea{resize:none;height:52px}
   <div class="col-gap">
     <div class="card"><div class="sec-title">By Strategy</div><div class="bd-rows" id="bd-strat"></div></div>
     <div class="card"><div class="sec-title">By Entry Type</div><div class="bd-rows" id="bd-entry"></div></div>
-    <div class="card"><div class="sec-title">By Attempt</div><div class="bd-rows" id="bd-attempt"></div></div>
+    <div class="card"><div class="sec-title">By Attempt (within session)</div><div class="bd-rows" id="bd-attempt"></div></div>
+    <div class="card"><div class="sec-title">Trades Per Session</div><div class="bd-rows" id="bd-session-count"></div></div>
   </div>
 </div>
 
@@ -451,15 +452,9 @@ textarea{resize:none;height:52px}
     </div>
     <div class="form-grid">
       <div class="form-col"><span class="form-lbl">R Outcome</span><input type="number" id="f-r" placeholder="e.g. 2.5 or -1" step="0.1"/></div>
-      <div class="form-col"><span class="form-lbl">Attempt</span>
-        <select id="f-attempt"><option value="1st">1st attempt</option><option value="2nd">2nd attempt</option></select>
-      </div>
-    </div>
-    <div class="form-grid">
       <div class="form-col"><span class="form-lbl">Session</span>
         <select id="f-session"><option value="NY AM">NY AM Session</option><option value="London">London Session</option><option value="Asia">Asia Session</option></select>
       </div>
-      <div class="form-col"></div>
     </div>
     <div class="form-col" style="margin-bottom:0">
       <span class="form-lbl">Note</span>
@@ -552,8 +547,30 @@ const DEFAULT_STRATEGIES = [
 ];
 
 
+function assignAttemptsStatic(tradeArr) {
+  const groups = {};
+  tradeArr.forEach(t => {
+    const key = `${t.date}__${t.session||'NY AM'}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  });
+  Object.values(groups).forEach(group => {
+    group.sort((a,b) => a.num - b.num);
+    group.forEach((t, i) => { t.attempt = i === 0 ? '1st' : i === 1 ? '2nd' : '3rd'; });
+  });
+  return tradeArr;
+}
+
 function loadData() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_TRADES)) || []; } catch(e) { return []; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_TRADES));
+    if (saved && saved.length) {
+      const updated = assignAttemptsStatic(saved);
+      localStorage.setItem(STORAGE_TRADES, JSON.stringify(updated));
+      return updated;
+    }
+    return [];
+  } catch(e) { return []; }
 }
 function loadStrategies() {
   try { const s = JSON.parse(localStorage.getItem(STORAGE_STRATEGIES)); return s && s.length ? s : DEFAULT_STRATEGIES; } catch(e) { return DEFAULT_STRATEGIES; }
@@ -1226,6 +1243,27 @@ function renderByDay() {
 }
 
 /* ══════════════════════════════════════════════
+   ATTEMPT ASSIGNMENT
+   Assigns 1st/2nd/3rd based on trade order within date+session
+══════════════════════════════════════════════ */
+function assignAttempts(tradeArr) {
+  // Group by date + session, sort by num (chronological), assign attempt
+  const groups = {};
+  tradeArr.forEach(t => {
+    const key = `${t.date}__${t.session||'NY AM'}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  });
+  Object.values(groups).forEach(group => {
+    group.sort((a,b) => a.num - b.num);
+    group.forEach((t, i) => {
+      t.attempt = i === 0 ? '1st' : i === 1 ? '2nd' : '3rd';
+    });
+  });
+  return tradeArr;
+}
+
+/* ══════════════════════════════════════════════
    BREAKDOWN
 ══════════════════════════════════════════════ */
 function bdRow(name,meta,s){
@@ -1242,13 +1280,44 @@ function bdRow(name,meta,s){
   </div>`;
 }
 function renderBreakdown() {
-  const byS=groupBy(trades,'strategy');
+  const tagged = assignAttempts([...trades]);
+
+  const byS=groupBy(tagged,'strategy');
   const sk=Object.keys(byS).sort((a,b)=>gStats(byS[b]).wr-gStats(byS[a]).wr);
   document.getElementById('bd-strat').innerHTML=sk.length?sk.map(k=>{const s=gStats(byS[k]);return bdRow(k,`${s.count} trade${s.count!==1?'s':''} · ${s.wins} win${s.wins!==1?'s':''}`,s);}).join(''):'<div class="empty">No trades yet.</div>';
-  const byE=groupBy(trades,'entry');
+
+  const byE=groupBy(tagged,'entry');
   document.getElementById('bd-entry').innerHTML=['Conservative','Aggressive'].filter(k=>byE[k]).map(k=>{const s=gStats(byE[k]);return bdRow(k,`${s.count} trade${s.count!==1?'s':''} · ${s.wins} win${s.wins!==1?'s':''}`,s);}).join('')||'<div class="empty">No trades yet.</div>';
-  const byA=groupBy(trades,'attempt');
-  document.getElementById('bd-attempt').innerHTML=['1st','2nd'].filter(k=>byA[k]).map(k=>{const s=gStats(byA[k]);return bdRow(k+' attempt',`${s.count} trade${s.count!==1?'s':''} · ${s.wins} win${s.wins!==1?'s':''}`,s);}).join('')||'<div class="empty">No trades yet.</div>';
+
+  const byA=groupBy(tagged,'attempt');
+  document.getElementById('bd-attempt').innerHTML=['1st','2nd','3rd'].filter(k=>byA[k]).map(k=>{const s=gStats(byA[k]);return bdRow(k+' attempt',`${s.count} trade${s.count!==1?'s':''} · ${s.wins} win${s.wins!==1?'s':''}`,s);}).join('')||'<div class="empty">No trades yet.</div>';
+
+  // Trades per session breakdown
+  // Group trades by unique date+session combo, count trades per session instance
+  const sessionInstances = {};
+  tagged.forEach(t => {
+    const key = `${t.date}__${t.session||'NY AM'}`;
+    if (!sessionInstances[key]) sessionInstances[key] = [];
+    sessionInstances[key].push(t);
+  });
+  // Bucket each session instance by trade count
+  const buckets = {'1 trade':[], '2 trades':[], '3+ trades':[]};
+  Object.values(sessionInstances).forEach(group => {
+    const key = group.length === 1 ? '1 trade' : group.length === 2 ? '2 trades' : '3+ trades';
+    group.forEach(t => buckets[key].push(t));
+  });
+  // Also track session instance count per bucket
+  const instanceCounts = {'1 trade':0, '2 trades':0, '3+ trades':0};
+  Object.values(sessionInstances).forEach(group => {
+    const key = group.length === 1 ? '1 trade' : group.length === 2 ? '2 trades' : '3+ trades';
+    instanceCounts[key]++;
+  });
+
+  document.getElementById('bd-session-count').innerHTML = Object.keys(buckets).filter(k=>buckets[k].length).map(k => {
+    const s = gStats(buckets[k]);
+    const ic = instanceCounts[k];
+    return bdRow(k, `${ic} session${ic!==1?'s':''} · ${s.count} total trade${s.count!==1?'s':''}`, s);
+  }).join('') || '<div class="empty">No trades yet.</div>';
 }
 
 /* ══════════════════════════════════════════════
@@ -1321,11 +1390,14 @@ document.getElementById('add-btn').addEventListener('click', () => {
   const r=parseFloat(document.getElementById('f-r').value);
   const strategy=document.getElementById('f-strategy').value;
   const entry=document.getElementById('f-entry').value;
-  const attempt=document.getElementById('f-attempt').value;
+  const attempt=document.getElementById('f-attempt') ? document.getElementById('f-attempt').value : '1st';
   const session=document.getElementById('f-session').value;
   const note=document.getElementById('f-note').value.trim();
   if(!date||isNaN(r)||!note){alert('Please fill in date, R outcome, and a note.');return;}
-  trades.push({num:trades.length+1,date,day,dir,result,r,strategy,entry,attempt,session,note});
+  // Auto-assign attempt based on how many trades already exist on same date+session
+  const sameSession = trades.filter(t => t.date===date && (t.session||'NY AM')===(session||'NY AM'));
+  const autoAttempt = sameSession.length === 0 ? '1st' : sameSession.length === 1 ? '2nd' : '3rd';
+  trades.push({num:trades.length+1,date,day,dir,result,r,strategy,entry,attempt:autoAttempt,session,note});
   saveData();
   document.getElementById('f-r').value='';
   document.getElementById('f-note').value='';
