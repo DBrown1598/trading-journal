@@ -216,17 +216,28 @@ body{min-height:100vh}
 .prog-strat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:12px}
 .prog-strat-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
 .prog-strat-name{font-size:15px;font-weight:700;color:var(--bright)}
-.prog-strat-meta{font-size:11px;color:var(--muted)}
-.prog-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.prog-strat-meta{font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-bg);padding:3px 10px;border-radius:20px}
+.prog-bar-wrap{display:flex;flex-direction:column;gap:6px}
+.prog-dots{display:flex;gap:4px;flex-wrap:wrap}
+.prog-dot{width:calc((100% - 76px) / 20);min-width:10px;height:22px;border-radius:4px;flex-shrink:0}
+.dot-win{background:var(--green)}
+.dot-loss{background:var(--red)}
+.dot-empty{background:var(--border2);opacity:.5}
+.prog-bar-track{height:6px;background:var(--border2);border-radius:3px;overflow:hidden;margin-top:2px}
+.prog-bar-fill{height:100%;border-radius:3px;transition:width .4s ease}
+.fill-green{background:var(--green)}
+.fill-red{background:var(--red)}
+.prog-bar-labels{display:flex;justify-content:space-between;align-items:center}
+.prog-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
 @media(max-width:480px){.prog-stats-row{grid-template-columns:repeat(2,1fr)}}
 .prog-stat{background:var(--surface2);border-radius:8px;padding:10px 12px;text-align:center}
 .prog-stat .ps-val{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;margin-bottom:3px}
 .prog-stat .ps-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.prog-trend-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px}
-.prog-trend-icon{font-size:14px;flex-shrink:0}
+.prog-trend-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:12px}
+.prog-trend-icon{font-size:14px;flex-shrink:0;margin-top:1px}
 .prog-trend-txt{color:var(--subtle);line-height:1.5}
-.prog-chart-wrap{position:relative;height:120px;margin-top:12px}
-.prog-window-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.prog-chart-wrap{position:relative;height:120px;margin-top:6px}
+.prog-window-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .prog-no-data{text-align:center;color:var(--muted);font-size:13px;padding:32px 0}
 .strat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:10px}
 .strat-card-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
@@ -1670,48 +1681,70 @@ function renderProgression() {
   el.innerHTML = stratNames.map(name => {
     const st = byS[name].slice().sort((a,b) => a.num - b.num);
     const recent = st.slice(-WINDOW);
-    const all = gStats(st);
     const rec = gStats(recent);
+    const filled = recent.length;
+    const pct = (filled / WINDOW) * 100;
 
-    // Rolling 5-trade win rate windows for sparkline
-    const sparkPoints = [];
-    for (let i = 4; i < recent.length; i++) {
-      const chunk = recent.slice(i-4, i+1);
-      sparkPoints.push(+(chunk.filter(t=>t.result==='Win').length/chunk.length*100).toFixed(0));
-    }
+    // Build 20 dots — filled ones are win/loss coloured, empty ones are grey
+    const dots = Array.from({length: WINDOW}, (_, i) => {
+      if (i < filled) {
+        const t = recent[i];
+        const cls = t.result === 'Win' ? 'dot-win' : 'dot-loss';
+        return `<div class="prog-dot ${cls}" title="T${i+1}: ${t.result} ${t.r>=0?'+':''}${t.r}R on ${t.date}"></div>`;
+      }
+      return `<div class="prog-dot dot-empty"></div>`;
+    }).join('');
 
-    // Trend: compare first half vs second half of recent window
+    // Trend analysis
     const half = Math.floor(recent.length / 2);
     const firstHalf = gStats(recent.slice(0, half));
     const secondHalf = gStats(recent.slice(half));
     const wrTrend = recent.length >= 6 ? secondHalf.wr - firstHalf.wr : null;
     const rTrend = recent.length >= 6 ? secondHalf.netR - firstHalf.netR : null;
 
-    // Trend label
     const trendLines = [];
     if (wrTrend !== null) {
-      if (wrTrend >= 10) trendLines.push({icon:'📈', txt:`Win rate trending UP +${wrTrend.toFixed(0)}% in recent trades vs earlier. Your ${name} execution is improving.`});
+      if (wrTrend >= 10) trendLines.push({icon:'📈', txt:`Win rate trending UP +${wrTrend.toFixed(0)}% in recent trades. Your ${name} execution is improving.`});
       else if (wrTrend <= -10) trendLines.push({icon:'📉', txt:`Win rate trending DOWN ${wrTrend.toFixed(0)}% in recent trades. Review recent ${name} setups.`});
-      else trendLines.push({icon:'➡️', txt:`Win rate is stable across recent ${name} trades (${firstHalf.wr.toFixed(0)}% → ${secondHalf.wr.toFixed(0)}%).`});
+      else trendLines.push({icon:'➡️', txt:`Win rate is stable (${firstHalf.wr.toFixed(0)}% → ${secondHalf.wr.toFixed(0)}%) across recent trades.`});
     }
     if (rTrend !== null) {
-      if (rTrend > 0) trendLines.push({icon:'💹', txt:`Net P&L improving in recent half: ${fmtR(secondHalf.netR)} vs ${fmtR(firstHalf.netR)} earlier.`});
-      else trendLines.push({icon:'⚠️', txt:`Net P&L declining in recent half: ${fmtR(secondHalf.netR)} vs ${fmtR(firstHalf.netR)} earlier.`});
+      if (rTrend > 0) trendLines.push({icon:'💹', txt:`Net P&L improving in recent trades: ${fmtR(secondHalf.netR)} vs ${fmtR(firstHalf.netR)} earlier.`});
+      else trendLines.push({icon:'⚠️', txt:`Net P&L declining in recent trades: ${fmtR(secondHalf.netR)} vs ${fmtR(firstHalf.netR)} earlier.`});
     }
 
-    // Best/worst trade in window
     const bestTrade = [...recent].sort((a,b)=>b.r-a.r)[0];
     const worstTrade = [...recent].sort((a,b)=>a.r-b.r)[0];
 
+    // Sparkline
+    const sparkPoints = [];
+    for (let i = 4; i < recent.length; i++) {
+      const chunk = recent.slice(i-4, i+1);
+      sparkPoints.push(+(chunk.filter(t=>t.result==='Win').length/chunk.length*100).toFixed(0));
+    }
     const canvasId = `prog-canvas-${name.replace(/[^a-z0-9]/gi,'_')}`;
 
     return `
     <div class="prog-strat-card">
       <div class="prog-strat-hdr">
         <div class="prog-strat-name">${name}</div>
-        <div class="prog-strat-meta">Last ${recent.length} of ${st.length} total trade${st.length!==1?'s':''}</div>
+        <div class="prog-strat-meta">${filled} / ${WINDOW} trades</div>
       </div>
-      <div class="prog-stats-row">
+
+      <!-- Progress bar -->
+      <div class="prog-bar-wrap">
+        <div class="prog-dots">${dots}</div>
+        <div class="prog-bar-track">
+          <div class="prog-bar-fill ${rec.wr>=50?'fill-green':'fill-red'}" style="width:${pct.toFixed(0)}%"></div>
+        </div>
+        <div class="prog-bar-labels">
+          <span style="color:var(--muted);font-size:10px">${filled < WINDOW ? `${WINDOW - filled} more to complete window` : '✅ Window complete — tracking rolling 20'}</span>
+          <span style="color:var(--muted);font-size:10px">${pct.toFixed(0)}%</span>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="prog-stats-row" style="margin-top:14px">
         <div class="prog-stat">
           <div class="ps-val ${rec.wr>=50?'pos':'neg'}">${rec.wr.toFixed(0)}%</div>
           <div class="ps-lbl">Win Rate</div>
@@ -1721,7 +1754,7 @@ function renderProgression() {
           <div class="ps-lbl">Net P&L</div>
         </div>
         <div class="prog-stat">
-          <div class="ps-val pos">+${fmtR(bestTrade.r)}</div>
+          <div class="ps-val pos">${fmtR(bestTrade.r)}</div>
           <div class="ps-lbl">Best Trade</div>
         </div>
         <div class="prog-stat">
@@ -1729,7 +1762,9 @@ function renderProgression() {
           <div class="ps-lbl">Worst Trade</div>
         </div>
       </div>
+
       ${trendLines.map(t=>`<div class="prog-trend-row"><span class="prog-trend-icon">${t.icon}</span><span class="prog-trend-txt">${t.txt}</span></div>`).join('')}
+
       ${sparkPoints.length >= 2 ? `
         <div class="prog-window-lbl" style="margin-top:14px">Rolling 5-trade Win Rate</div>
         <div class="prog-chart-wrap"><canvas id="${canvasId}"></canvas></div>
@@ -1737,7 +1772,7 @@ function renderProgression() {
     </div>`;
   }).join('');
 
-  // Draw sparklines after render
+  // Draw sparklines
   setTimeout(() => {
     stratNames.forEach(name => {
       const st = byS[name].slice().sort((a,b) => a.num - b.num);
